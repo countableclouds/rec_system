@@ -28,27 +28,34 @@ public struct TrainingModel: Layer {
         problemLayer3 = Dense<Float>(inputSize: hiddenSize, outputSize: vectorizationLength, activation: sigmoid)
     }
 
+    public func userEmbedding(problemRatings input: Tensor<Float>) -> Tensor<Float> {
+        return batchNormalized(inputTensor: input.sequenced(through: userLayer1, userLayer2, userLayer3), alongAxis: 1)
+    }
+
+    public func problemEmbedding(userRatings input: Tensor<Float>) -> Tensor<Float> {
+        return batchNormalized(inputTensor: input.sequenced(through: problemLayer1, problemLayer2, problemLayer3), alongAxis: 1)
+    }
+
     @differentiable
     public func callAsFunction(_ input: [Tensor<Float>]) -> Tensor<Float> {
-        let firstTensor = batchNormalized(inputTensor: input[0].sequenced(through: userLayer1, userLayer2, userLayer3), alongAxis: 1)
-        let secondTensor = batchNormalized(inputTensor: input[1].sequenced(through: problemLayer1, problemLayer2, problemLayer3), alongAxis: 1)
+        let firstTensor = userEmbedding(problemRatings: input[0])
+        let secondTensor = problemEmbedding(userRatings: input[1])
         let tensor = (firstTensor * secondTensor).sum(squeezingAxes: Tensor<Int32>([1]))
-        print(tensor)
         return max(tensor, 1e-5)
     }
 }
 
 public class Model {
-    public let ratingMatrix: Tensor<Bool>
+    public let ratingMatrix: Tensor<Float>
     public let zeroIndices: Tensor<Int64>
     public let ratingIndices: Tensor<Int64>
     public var classifier: TrainingModel
     public var optimizer: Adam<TrainingModel>
 
     public init(ratingMat: Tensor<Bool>) {
-        ratingMatrix = ratingMat
+        ratingMatrix = Tensor<Float>(ratingMat)
         ratingIndices = ratingMat.nonZeroIndices()
-        zeroIndices = ratingMatrix.elementsLogicalNot().nonZeroIndices()
+        zeroIndices = ratingMat.elementsLogicalNot().nonZeroIndices()
         classifier = TrainingModel(userLength: ratingMatrix.shape[1], problemLength: ratingMatrix.shape[0], vectorizationLength: 4, hiddenSize: 4)
         optimizer = Adam(for: classifier, learningRate: 0.02)
         Context.local.learningPhase = .training
@@ -59,7 +66,7 @@ public class Model {
     public func getInstances(negRatio: Float) -> (userTrain: Tensor<Int64>, problemTrain: Tensor<Int64>, ratingTrain: Tensor<Float>){
         var maskArray: [Bool] = [];
         let dim = ratingMatrix.shape
-        for _ in 0..<dim[0] {
+        for _ in 0..<zeroIndices.shape[0] {
             maskArray.append(Float.random(in: 0..<1) < negRatio)
         }
         let mask = Tensor<Bool>(maskArray)
@@ -71,13 +78,14 @@ public class Model {
         let numProblems = problemTrain.shape[0]
         var atIndices: [Int64] = []
         for i in 0..<numProblems {
-            atIndices.append(Int64(userTrain[i])!*Int64(dim[0])  + Int64(problemTrain[i])!)
+            atIndices.append(Int64(userTrain[i])!*Int64(dim[1])  + Int64(problemTrain[i])!)
         }
-        var ratingTrain = Tensor<Float>(ratingMatrix).flattened().gathering(atIndices: Tensor<Int64>(atIndices), alongAxis: 0)
+        var ratingTrain = ratingMatrix.flattened().gathering(atIndices: Tensor<Int64>(atIndices), alongAxis: 0)
         let shuffledIndices: [Int64] = (0..<Int64(numProblems)).shuffled()
         userTrain = userTrain.gathering(atIndices: Tensor<Int64>(shuffledIndices), alongAxis: 0)
         problemTrain = problemTrain.gathering(atIndices: Tensor<Int64>(shuffledIndices), alongAxis: 0)
         ratingTrain = ratingTrain.gathering(atIndices: Tensor<Int64>(shuffledIndices), alongAxis: 0)
+
         return (userTrain, problemTrain, ratingTrain)
     }
 
@@ -89,9 +97,9 @@ public class Model {
             let minIdx = i * batchSize
             let maxIdx = min((i+1)*batchSize, trainLen)
             let userTrainBatch = userTrain[minIdx..<maxIdx]
-            let userMatrixInput = Tensor<Float>(ratingMatrix.gathering(atIndices: userTrainBatch, alongAxis: 0))
+            let userMatrixInput = ratingMatrix.gathering(atIndices: userTrainBatch, alongAxis: 0)
             let problemTrainBatch = problemTrain[minIdx..<maxIdx]
-            let problemMatrixInput = Tensor<Float>(ratingMatrix.gathering(atIndices: problemTrainBatch, alongAxis: 1)).transposed()
+            let problemMatrixInput = ratingMatrix.gathering(atIndices: problemTrainBatch, alongAxis: 1).transposed()
             let y = ratingTrain[minIdx..<maxIdx]
             let 𝛁model = gradient(at: classifier) { classifier -> Tensor<Float> in
                 let ŷ: Tensor<Float> = classifier.callAsFunction([userMatrixInput, problemMatrixInput])
@@ -99,6 +107,7 @@ public class Model {
                 let second_loss = (log(1-ŷ)*(1-y)).sum()
                 let loss = -first_loss-second_loss
                 print("Loss: \(loss)")
+
                 return loss 
             }
             optimizer.update(&classifier, along: 𝛁model)
@@ -115,9 +124,19 @@ public class Model {
         }
     }
 
+    public func collectMatrix() -> Tensor<Float>{
+        
+        let userEmbeddings = classifier.userEmbedding(problemRatings: ratingMatrix)
+        let problemEmbeddings = classifier.problemEmbedding(userRatings: ratingMatrix.transposed())
+        return max(problemEmbeddings•userEmbeddings, 1e-5)
+
+        
+    }
+
 
     // public func 
 }
 let arr = Tensor<Bool>(arrayLiteral: [false, false, true], [true, false, true], [true, true, false], [false, false, false])
 var model = Model(ratingMat: arr)
-model.train(numEpochs: 400, negRatio: 0.5, batchSize: 10)
+model.train(numEpochs: 1000, negRatio: 1, batchSize: 100)
+print(model.collectMatrix())
