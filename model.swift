@@ -41,7 +41,7 @@ public struct TrainingModel: Layer {
         let firstTensor = userEmbedding(problemRatings: input[0])
         let secondTensor = problemEmbedding(userRatings: input[1])
         let tensor = (firstTensor * secondTensor).sum(squeezingAxes: Tensor<Int32>([1]))
-        return max(tensor, 1e-5)
+        return min(max(tensor, 1e-5), 1-1e-5)
     }
 }
 
@@ -126,8 +126,8 @@ public class Model {
 
     public func collectMatrix() -> Tensor<Float>{
         
-        let userEmbeddings = classifier.userEmbedding(problemRatings: ratingMatrix)
-        let problemEmbeddings = classifier.problemEmbedding(userRatings: ratingMatrix.transposed())
+        let userEmbeddings = batchNormalized(inputTensor:classifier.userEmbedding(problemRatings: ratingMatrix), alongAxis: 1).transposed()
+        let problemEmbeddings = batchNormalized(inputTensor: classifier.problemEmbedding(userRatings: ratingMatrix.transposed()), alongAxis:1)
         return max(problemEmbeddings•userEmbeddings, 1e-5)
 
         
@@ -136,7 +136,7 @@ public class Model {
 
     // public func 
 }
-let arr = Tensor<Bool>(arrayLiteral: [false, false, true], [true, false, true], [true, true, false], [false, false, false])
+let arr = Tensor<Bool>(arrayLiteral:  [false, false, true], [true, false, true], [true, true, false], [false, false, false])
 var model = Model(ratingMat: arr)
-model.train(numEpochs: 10000, negRatio: 1, batchSize: 100)
+model.train(numEpochs: 400, negRatio: 1, batchSize: 100)
 print(model.collectMatrix())
