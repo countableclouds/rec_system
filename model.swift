@@ -58,7 +58,6 @@ public class Model {
         zeroIndices = ratingMat.elementsLogicalNot().nonZeroIndices()
         classifier = TrainingModel(userLength: ratingMatrix.shape[1], problemLength: ratingMatrix.shape[0], vectorizationLength: 4, hiddenSize: 4)
         optimizer = Adam(for: classifier, learningRate: 0.02)
-        Context.local.learningPhase = .training
 
         
     }
@@ -69,7 +68,7 @@ public class Model {
         for _ in 0..<zeroIndices.shape[0] {
             maskArray.append(Float.random(in: 0..<1) < negRatio)
         }
-        let mask = Tensor<Bool>(maskArray)
+        let mask = Tensor(maskArray)
         let trainZeroIndices = zeroIndices.gathering(where: mask)
         let trainIndices = trainZeroIndices ++ ratingIndices
         let splitted = trainIndices.split(count: 2, alongAxis: 1)
@@ -78,13 +77,13 @@ public class Model {
         let numProblems = problemTrain.shape[0]
         var atIndices: [Int64] = []
         for i in 0..<numProblems {
-            atIndices.append(Int64(userTrain[i])!*Int64(dim[1])  + Int64(problemTrain[i])!)
+            atIndices.append(userTrain[i].scalarized()*Int64(dim[1])  + problemTrain[i].scalarized())
         }
-        var ratingTrain = ratingMatrix.flattened().gathering(atIndices: Tensor<Int64>(atIndices), alongAxis: 0)
-        let shuffledIndices: [Int64] = (0..<Int64(numProblems)).shuffled()
-        userTrain = userTrain.gathering(atIndices: Tensor<Int64>(shuffledIndices), alongAxis: 0)
-        problemTrain = problemTrain.gathering(atIndices: Tensor<Int64>(shuffledIndices), alongAxis: 0)
-        ratingTrain = ratingTrain.gathering(atIndices: Tensor<Int64>(shuffledIndices), alongAxis: 0)
+        var ratingTrain = ratingMatrix.flattened().gathering(atIndices: Tensor(atIndices), alongAxis: 0)
+        let shuffledIndices = (0..<Int64(numProblems)).shuffled()
+        userTrain = userTrain.gathering(atIndices: Tensor(shuffledIndices), alongAxis: 0)
+        problemTrain = problemTrain.gathering(atIndices: Tensor(shuffledIndices), alongAxis: 0)
+        ratingTrain = ratingTrain.gathering(atIndices: Tensor(shuffledIndices), alongAxis: 0)
 
         return (userTrain, problemTrain, ratingTrain)
     }
@@ -102,7 +101,7 @@ public class Model {
             let problemMatrixInput = ratingMatrix.gathering(atIndices: problemTrainBatch, alongAxis: 1).transposed()
             let y = ratingTrain[minIdx..<maxIdx]
             let 𝛁model = gradient(at: classifier) { classifier -> Tensor<Float> in
-                let ŷ: Tensor<Float> = classifier.callAsFunction([userMatrixInput, problemMatrixInput])
+                let ŷ = classifier.callAsFunction([userMatrixInput, problemMatrixInput])
                 let first_loss = (log(ŷ)*y).sum()
                 let second_loss = (log(1-ŷ)*(1-y)).sum()
                 let loss = -first_loss-second_loss
@@ -117,8 +116,9 @@ public class Model {
     }
 
 
-    public func train(numEpochs: UInt32, negRatio: Float, batchSize: Int){
+    public func train(numEpochs: UInt, negRatio: Float, batchSize: Int){
         print("Training beginning")
+        Context.local.learningPhase = .training
         for _ in 1...numEpochs {
             runEpoch(negRatio: negRatio, batchSize: batchSize)
         }
@@ -138,5 +138,5 @@ public class Model {
 }
 let arr = Tensor<Bool>(arrayLiteral: [false, false, true], [true, false, true], [true, true, false], [false, false, false])
 var model = Model(ratingMat: arr)
-model.train(numEpochs: 1000, negRatio: 1, batchSize: 100)
+model.train(numEpochs: 10000, negRatio: 1, batchSize: 100)
 print(model.collectMatrix())
