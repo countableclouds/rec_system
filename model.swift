@@ -1,9 +1,14 @@
 import TensorFlow
 
-func normalize(tensor: Tensor<Float>) -> Tensor<Float>{
-    print("\(tensor),\n\n \(tensor/Tensor.sqrt(tensor.squared().sum()))\n\n")
-    return tensor/Tensor.sqrt(tensor.squared().sum())
+public func batchNormalized(inputTensor: Tensor<Float>, alongAxis axis: Int32) -> Tensor<Float> {
+    let moments = (inputTensor * inputTensor).sum(squeezingAxes: Tensor<Int32>([axis]))
+    var inv = Tensor<Float>(stacking: Array(repeating: rsqrt(moments), count: inputTensor.shape[Int(axis)]), alongAxis: 1)
+    if axis == 0 {
+        inv = inv.transposed()
+    }
+    return inputTensor * inv
 }
+
 
 public struct TrainingModel: Layer {
     var userLayer1: Dense<Float>
@@ -25,9 +30,10 @@ public struct TrainingModel: Layer {
 
     @differentiable
     public func callAsFunction(_ input: [Tensor<Float>]) -> Tensor<Float> {
-        let firstTensor = input[0].sequenced(through: userLayer1, userLayer2, userLayer3).batchNormalized(alongAxis: 0)
-        let secondTensor = input[1].sequenced(through: problemLayer1, problemLayer2, problemLayer3).batchNormalized(alongAxis: 1)
-        let tensor = firstTensor • secondTensor
+        let firstTensor = batchNormalized(inputTensor: input[0].sequenced(through: userLayer1, userLayer2, userLayer3), alongAxis: 1)
+        let secondTensor = batchNormalized(inputTensor: input[1].sequenced(through: problemLayer1, problemLayer2, problemLayer3), alongAxis: 1)
+        let tensor = (firstTensor * secondTensor).sum(squeezingAxes: Tensor<Int32>([1]))
+        print(tensor)
         return max(tensor, 1e-5)
     }
 }
@@ -114,4 +120,4 @@ public class Model {
 }
 let arr = Tensor<Bool>(arrayLiteral: [false, false, true], [true, false, true], [true, true, false], [false, false, false])
 var model = Model(ratingMat: arr)
-model.train(numEpochs: 100, negRatio: 0.5, batchSize: 10)
+model.train(numEpochs: 400, negRatio: 0.5, batchSize: 10)
