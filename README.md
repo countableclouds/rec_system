@@ -11,7 +11,7 @@ This deep-learning approach used two neural network that each vectorize a user v
 
 The interesting component is how to train in such a way that minimizes the amount of false information that is given by the lack of the rating. For this conundrum, in each epoch, the algorithm doesn't train on every single cell of the matrix, but rather on every cell with a positive rating, and some ratio of the no rating cells. This ratio is another hyperparameter of the net to be optimized, but well-chosen, it represents how much it matters if a user doesn't upvote a problem. With this consideration in mind, you obtain a randomized algorithm which in fact corrects for overfitting in part, and is a lot more accurate.
 
-Note that this algorithm inherently takes into account a variety of factors, such as problem difficulty (users will only rate easier challenges, and therefore will be given easier challenges), genres of problems, and more. However, some explicit factors, such as tags, are used additionally to enhance the system further.
+Note that this algorithm inherently takes into account a variety of factors, such as problem difficulty (some users may only rate easier challenges, and since many users like them will have done the same thing, most difficult problems will be zeroed out), genres of problems, and more. However, some explicit factors, such as tags, are used additionally to enhance the system further.
 
 
 ## Reconciling the Algorithm with a Problem-Ranking System
