@@ -138,5 +138,5 @@ public class Model {
 }
 let arr = Tensor<Bool>(arrayLiteral:  [false, false, true], [true, false, true], [true, true, false], [false, false, false])
 var model = Model(ratingMat: arr)
-model.train(numEpochs: 400, negRatio: 1, batchSize: 100)
+model.train(numEpochs: 2000, negRatio: 1, batchSize: 100)
 print(model.collectMatrix())
