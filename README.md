@@ -3,6 +3,8 @@ This algorithm is a deep-learning approach to collaborative filtering. Essential
 
 However, if you can use this matrix to infer what the values actually are in the cells with zero, essentially filling in unknown spots, you can predict how much a user would like a problem.
 
+Currently, the repo has the fully implemented machine learning algorithm, but since it would be applied to user data from our product, it is not yet trained. There is a small dummy matrix there, however, for a proof of concept.
+
 
 ## Neural Network Architecture
 Our network architecture was modeled off of [this](https://www.ijcai.org/Proceedings/2017/0447.pdf) novel paper, which seemed to beat many of the benchmarks for collaborative filtering algorithms and therefore was optimal for our product.
