@@ -21,6 +21,6 @@ Finally, because the user also subscribes to certain curators, those curators' p
 
 ## Curators You Might Like
 
-The curators you might like system, although also not implemented, follows from graph-search principles and the deep-learning algorithm. Firstly, since for each user we have its rating for each problem, curators which are well liked by users can be added to this system. The other method is that since users follow certain curators, finding other followers of those curators and their corresponding subscriptions can allow for another good mechanism for identifying good people to follow.
+The curators you might like system, although also not implemented, follows from graph-search principles and the deep-learning algorithm. Firstly, since for each user we have its rating for each problem, curators that are well liked by users can be added to their feed. The other method is that since users follow certain curators, finding other followers of those curators and their corresponding subscriptions can allow for another good mechanism for identifying good people to follow.
 
 Overall, these algorithms were interesting to devise, and hopefully they would helpfully allow users to find problems, of appropriate difficulty, that they'd truly enjoy.
