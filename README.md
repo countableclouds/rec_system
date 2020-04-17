@@ -4,7 +4,7 @@ This algorithm is a deep-learning approach to collaborative filtering. Essential
 However, if you can use this matrix to infer what the values actually are in the cells with zero, essentially filling in unknown spots, you can predict how much a user would like a problem.
 
 
-## Network Architecture
+## Neural Network Architecture
 Our network architecture was modeled off of [this](https://www.ijcai.org/Proceedings/2017/0447.pdf) novel paper, which seemed to beat many of the benchmarks for collaborative filtering algorithms and therefore was optimal for our product.
 
 This deep-learning approach used two neural network that each vectorize a user vector and a problem vector. The user vector consists of all the ratings the user has given to problems, and the problem vector consists of all the ratings it got from different users. Each network outputs the vectorization, and you can take the cosine similarity of those two vectors to get a "predicted rating" from 0 to 1. This is the normalized version of the total rating, and in this case, it actually is the "rating" since the maximum rating is 1. Although ratings are usually discrete and binary, this continuous version is more convenient for ranking problems for a user. These two networks are backpropagated together with a custom loss function that was determined by the paper to be optimal for training.
